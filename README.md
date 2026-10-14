@@ -35,120 +35,6 @@ langchain-tool-agent/
 └── README.md         # Project documentation
 ```
 
-## ⚙️ Installation and Setup
-
-### 1. Clone the repository
-
-```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd langchain-tool-agent
-```
-
-Replace the placeholder with your actual GitHub repository URL.
-
-### 2. Create a virtual environment
-
-```bash
-python3 -m venv venv
-```
-
-Activate it on Linux/macOS:
-
-```bash
-source venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
-pip install langchain langchain-groq python-dotenv
-```
-
-### 4. Configure your Groq API key
-
-Create a `.env` file in the project root:
-
-```env
-GROQ_API_KEY=your_groq_api_key_here
-```
-
-Get an API key from the [Groq Console](https://console.groq.com/).
-
-**Important:** Never upload your API key or `.env` file to GitHub.
-
-### 5. Run the agent
-
-```bash
-python agent.py
-```
-
-The agent starts an interactive terminal session where you can enter prompts and observe how it responds using the available tools.
-
-## 💡 Example Prompts
-
-### Math Calculator
-
-```text
-Calculate (25 + 15) * 3.
-```
-
-```text
-What is 144 divided by 12?
-```
-
-### Text Analyzer
-
-```text
-Analyze this text: LangChain makes it easier to build
-applications powered by language models.
-```
-
-```text
-Count the words and characters in this sentence:
-Learning Python is useful.
-```
-
-### Date Utility
-
-```text
-What is today's date?
-```
-
-```text
-Calculate the date 30 days from today.
-```
-
-### Multiple Tools
-
-```text
-Calculate 125 * 8, then analyze the sentence
-"Building AI agents is interesting" and tell me today's date.
-```
-
-The model determines which available tools are appropriate for each request.
-
-## 🧪 Testing
-
-Run the tool tests with:
-
-```bash
-python -m pytest test_tools.py
-```
-
-If `pytest` is not installed, install it first:
-
-```bash
-pip install pytest
-```
-
-## 🔐 Environment Variables
-
-| Variable | Description |
-|---|---|
-| `GROQ_API_KEY` | API key used to authenticate with Groq |
-
-Keep `.env` excluded from version control using `.gitignore`.
-
 ## 🧠 How It Works
 
 1. The user enters a prompt in the terminal.
@@ -183,14 +69,6 @@ Tool Result
 Final Response
 ```
 
-## 🎯 Learning Objectives
-
-This project demonstrates:
-
-- Creating custom tools in LangChain.
-- Using tool descriptions and function docstrings.
-- Integrating a language model through Groq.
-- Configuring API
 
 
 Manual Agent Selecting-: [Screencast from 14-10-26 12:08:53 PM IST.webm](https://github.com/user-attachments/assets/53efea48-4596-4b2a-b56b-a1398ef0ab22)
