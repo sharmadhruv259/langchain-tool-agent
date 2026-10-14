@@ -191,3 +191,10 @@ This project demonstrates:
 - Using tool descriptions and function docstrings.
 - Integrating a language model through Groq.
 - Configuring API
+
+
+Manual Agent Selecting-: [Screencast from 14-10-26 12:08:53 PM IST.webm](https://github.com/user-attachments/assets/53efea48-4596-4b2a-b56b-a1398ef0ab22)
+
+Auto Agent Selecting-: [Screencast from 14-10-26 12:55:13 PM IST.webm](https://github.com/user-attachments/assets/bf04c8a6-ba3b-4453-ba5c-f28b6fc98cfe)
+
+Final Project-: [Screencast from 14-10-26 01:39:54 PM IST.webm](https://github.com/user-attachments/assets/4ba634ed-82b9-48e5-be1f-a8fdcf65082d)
