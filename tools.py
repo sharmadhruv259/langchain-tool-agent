@@ -1,6 +1,6 @@
 import operator
 import ast
-
+import requests
 from pydantic import BaseModel, Field
 from langchain.tools import tool
 from datetime import date, timedelta
@@ -28,10 +28,20 @@ class TextInput(BaseModel):
 
 class DateInput(BaseModel):
     """
+    takes the date as the input (YYYY,MM,DD)
+    args: date
     """
 
     days: int = Field( description= "Number of days to add to today's date-: ")
 
+class WeatherInput(BaseModel):
+    """
+    takes the name of the city as the input
+    args: str
+    """
+
+    city: str = Field(description="City name, such as chandigarh")
+    
 def safe_calculate(expression: str) -> int | float:
     """Evaluate a basic arithmetic expression safely.
     Args: str (Arithmetic expression containing supported operators)
@@ -173,3 +183,118 @@ def date_tool(days: int) -> str:
     today = date.today()
     future_date = today + timedelta(days=days)
     return future_date.strftime("%Y-%m-%d")
+
+@tool(args_schema= WeatherInput)
+def weather_tool(city: str) -> str:
+    """
+    define the city name with temperature and clothing preferences
+    args: str
+    """
+    try:
+        if not city.strip():
+            return "Weather error: Please provide a city name."
+
+        geo_response = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={
+                "name": city.strip(),
+                "count": 1,
+                "language": "en",
+                "format": "json",
+            },
+            timeout=10,
+        )
+        geo_response.raise_for_status()
+        geo_data = geo_response.json()
+
+        locations = geo_data.get("results", [])
+
+        if not locations:
+            return f"Weather error: Could not find the city '{city}'."
+
+        location = locations[0]
+        latitude = location["latitude"]
+        longitude = location["longitude"]
+        city_name = location["name"]
+        country = location.get("country", "")
+
+        weather_response = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": latitude,
+                "longitude": longitude,
+                "current": (
+                    "temperature_2m,apparent_temperature,"
+                    "relative_humidity_2m,precipitation,"
+                    "weather_code,wind_speed_10m"
+                ),
+                "timezone": "auto",
+            },
+            timeout=10,
+        )
+        weather_response.raise_for_status()
+        weather_data = weather_response.json()
+        current = weather_data["current"]
+
+        weather_codes = {
+            0: "Clear sky",
+            1: "Mainly clear",
+            2: "Partly cloudy",
+            3: "Overcast",
+            45: "Foggy",
+            48: "Foggy with frost",
+            51: "Light drizzle",
+            53: "Moderate drizzle",
+            55: "Heavy drizzle",
+            61: "Light rain",
+            63: "Moderate rain",
+            65: "Heavy rain",
+            71: "Light snowfall",
+            73: "Moderate snowfall",
+            75: "Heavy snowfall",
+            80: "Rain showers",
+            81: "Moderate rain showers",
+            82: "Heavy rain showers",
+            95: "Thunderstorm",
+            96: "Thunderstorm with hail",
+            99: "Thunderstorm with heavy hail",
+        }
+
+        code = current.get("weather_code")
+        condition = weather_codes.get(code, "Variable conditions")
+        temperature = current["temperature_2m"]
+        feels_like = current["apparent_temperature"]
+        humidity = current["relative_humidity_2m"]
+        precipitation = current["precipitation"]
+        wind_speed = current["wind_speed_10m"]
+
+        # Step 4: Create a basic clothing suggestion.
+        if temperature >= 30:
+            clothing = "Wear lightweight, breathable clothing."
+        elif temperature >= 20:
+            clothing = "Light clothing should be comfortable."
+        elif temperature >= 10:
+            clothing = "Consider a light jacket or sweater."
+        else:
+            clothing = "Wear warm layers and a suitable jacket."
+
+        if precipitation > 0 or code in {
+            51, 53, 55, 61, 63, 65, 80, 81, 82, 95, 96, 99
+        }:
+            clothing += " Carry an umbrella or raincoat."
+
+        return (
+            f"Weather for {city_name}, {country}:\n"
+            f"Condition: {condition}\n"
+            f"Temperature: {temperature}°C\n"
+            f"Feels like: {feels_like}°C\n"
+            f"Humidity: {humidity}%\n"
+            f"Precipitation: {precipitation} mm\n"
+            f"Wind speed: {wind_speed} km/h\n"
+            f"Clothing suggestion: {clothing}"
+        )
+
+    except requests.RequestException as exc:
+        return f"Weather error: Could not reach the weather API ({exc})."
+    except (KeyError, TypeError, ValueError) as exc:
+        return f"Weather error: Unexpected API response ({exc})."

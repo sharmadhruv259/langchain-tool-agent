@@ -1,9 +1,10 @@
-from tools import math_tool, text_analyzer_tool, date_tool
+from tools import math_tool, text_analyzer_tool, date_tool , weather_tool
 
 tools = [
     math_tool,
     text_analyzer_tool,
     date_tool,
+    weather_tool,
 ]
 
 def test_math_tool() -> None:
@@ -34,6 +35,8 @@ def test_text_analyzer_tool() -> None:
 
 def test_date_tool() -> None:
     """
+    takes no of days to be added in the date
+    args: date
     """
 
     days = int(input("Enter the number of days-: "))
@@ -42,7 +45,20 @@ def test_date_tool() -> None:
     })
     print("\n Date Utility result: ")
     print(result)
-    
+
+def test_weather() -> None:
+    """
+    takes city name as input and check weather
+    args: str
+    """
+
+    city = input("Enter the name of the city: ").strip()
+    result = weather_tool.invoke({
+        "city":city
+    })
+
+    print("/n Weather Tool Result: ")
+    print(result)
 
 if __name__ == "__main__":
 

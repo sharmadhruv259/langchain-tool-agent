@@ -9,6 +9,7 @@ from tools import (
     math_tool,
     text_analyzer_tool,
     date_tool,
+    weather_tool,
 )
 
 
@@ -36,6 +37,7 @@ def main() -> None:
         math_tool,
         text_analyzer_tool,
         date_tool,
+        weather_tool,
     ]
 
     agent = create_agent(
@@ -44,10 +46,11 @@ def main() -> None:
         system_prompt=(
             "You are a helpful assistant that can use multiple tools "
             "in sequence to complete a request. "
-            "Use math_tool for arithmetic calculations and date_tool "
-            "for date calculations. "
-            "When a request requires both, call the math tool first, "
-            "then the date tool. "
+            "Use math_tool for calculations, date_tool for date calculations, "
+            "text_analyzer_tool for text analysis, and weather_tool for "
+            "current weather information and clothing suggestions. "
+            "When weather information is requested, call weather_tool "
+            "for the requested city and base your answer on its actual result. "
             "Use the actual tool results in your final answer."
         ),
         debug=False,
