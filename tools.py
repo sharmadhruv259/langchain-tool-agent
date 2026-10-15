@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 from langchain.tools import tool
 from datetime import date, timedelta
 
+
+
 class MathInput(BaseModel):
     """
     Define the input schema for the math tool
@@ -298,3 +300,5 @@ def weather_tool(city: str) -> str:
         return f"Weather error: Could not reach the weather API ({exc})."
     except (KeyError, TypeError, ValueError) as exc:
         return f"Weather error: Unexpected API response ({exc})."
+
+ALL_TOOLS = [math_tool, text_analyzer_tool, date_tool, weather_tool]

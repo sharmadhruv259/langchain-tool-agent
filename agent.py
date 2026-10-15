@@ -1,20 +1,116 @@
+"""Groq-powered multi-tool agent.
+
+Terminal chat:  python agent.py
+The API (api.py) imports build_agent() and run_agent() from this file.
+"""
 
 import os
+import time
+from typing import Iterator
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent
+from langchain_core.messages import HumanMessage
 from langchain_groq import ChatGroq
 
-from tools import (
-    math_tool,
-    text_analyzer_tool,
-    date_tool,
-    weather_tool,
-)
+from prompt import SYSTEM_PROMPT
+from tools import ALL_TOOLS
+
+load_dotenv()
+
+MAX_TURNS = 10
+
+
+def build_agent():
+    """Create the Groq-powered agent with every registered tool.
+
+    Raises:
+        RuntimeError: If GROQ_API_KEY is missing.
+    """
+    if not os.getenv("GROQ_API_KEY"):
+        raise RuntimeError("Missing GROQ_API_KEY.")
+
+    model = ChatGroq(
+        model="openai/gpt-oss-120b",
+        temperature=0,
+    )
+
+    return create_agent(
+        model=model,
+        tools=ALL_TOOLS,
+        system_prompt=SYSTEM_PROMPT,
+        debug=False,
+    )
+
+
+def _text(content) -> str:
+    """Message content can be a string or a list of content blocks."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, str):
+                parts.append(block)
+            elif isinstance(block, dict) and block.get("type") == "text":
+                parts.append(block.get("text", ""))
+        return "".join(parts)
+    return str(content)
+
+
+def _trim(history: list) -> None:
+    """Keep only the last MAX_TURNS user turns, cutting on a turn boundary."""
+    human_idx = [i for i, m in enumerate(history) if m.type == "human"]
+    if len(human_idx) > MAX_TURNS:
+        del history[: human_idx[-MAX_TURNS]]
+
+
+def run_agent(agent, message: str, history: list) -> Iterator[dict]:
+    """Run one user message and yield simple event dicts as work happens.
+
+    Events: tool_start, tool_result, answer. `history` is updated in place
+    when the run finishes, so pass the same list to keep multi-turn memory.
+    """
+    new_messages = [HumanMessage(content=message)]
+    started_at: dict[str, float] = {}
+
+    for chunk in agent.stream(
+        {"messages": history + new_messages}, stream_mode="updates"
+    ):
+        for update in chunk.values():
+            for msg in (update or {}).get("messages", []):
+                new_messages.append(msg)
+
+                if msg.type == "ai":
+                    for call in msg.tool_calls or []:
+                        started_at[call["id"]] = time.perf_counter()
+                        yield {
+                            "type": "tool_start",
+                            "id": call["id"],
+                            "tool": call["name"],
+                            "input": call["args"],
+                        }
+                    if not msg.tool_calls:
+                        text = _text(msg.content)
+                        if text:
+                            yield {"type": "answer", "text": text}
+
+                elif msg.type == "tool":
+                    began = started_at.pop(msg.tool_call_id, time.perf_counter())
+                    yield {
+                        "type": "tool_result",
+                        "id": msg.tool_call_id,
+                        "tool": msg.name,
+                        "result": _text(msg.content),
+                        "duration_ms": int((time.perf_counter() - began) * 1000),
+                    }
+
+    history.extend(new_messages)
+    _trim(history)
 
 
 def main() -> None:
-    """Run the Groq-powered multi-tool agent.
+    """Run the interactive command-line agent.
 
     Args:
         None.
@@ -22,39 +118,11 @@ def main() -> None:
     Returns:
         None: Runs an interactive command-line agent.
     """
-    load_dotenv()
-
-    if not os.getenv("GROQ_API_KEY"):
-        print("Error: Missing GROQ_API_KEY.")
+    try:
+        agent = build_agent()
+    except RuntimeError as exc:
+        print(f"Error: {exc}")
         return
-
-    model = ChatGroq(
-        model="openai/gpt-oss-120b",
-        temperature=0,
-    )
-
-    tools = [
-        math_tool,
-        text_analyzer_tool,
-        date_tool,
-        weather_tool,
-    ]
-
-    agent = create_agent(
-        model=model,
-        tools=tools,
-        system_prompt=(
-            "You are a helpful assistant that can use multiple tools "
-            "in sequence to complete a request. "
-            "Use math_tool for calculations, date_tool for date calculations, "
-            "text_analyzer_tool for text analysis, and weather_tool for "
-            "current weather information and clothing suggestions. "
-            "When weather information is requested, call weather_tool "
-            "for the requested city and base your answer on its actual result. "
-            "Use the actual tool results in your final answer."
-        ),
-        debug=False,
-    )
 
     print("Groq Multi-Tool Agent is ready!")
     print("Type 'exit' to quit.")
@@ -74,31 +142,14 @@ def main() -> None:
             print("\n--- Agent Execution Log ---")
             final_answer = ""
 
-            for chunk in agent.stream(
-                {
-                    "messages": [
-                        {"role": "user", "content": user_input}
-                    ]
-                },
-                stream_mode="updates",
-            ):
-                for node, update in chunk.items():
-                    for message in update.get("messages", []):
-                        tool_calls = getattr(message, "tool_calls", [])
-
-                        if tool_calls:
-                            for call in tool_calls:
-                                print(f"\nTool selected: {call['name']}")
-                                print(f"Tool input: {call['args']}")
-
-                        elif message.__class__.__name__ == "ToolMessage":
-                            print(f"Tool result: {message.content}")
-
-                        elif (
-                            message.__class__.__name__ == "AIMessage"
-                            and message.content
-                        ):
-                            final_answer = message.content
+            for event in run_agent(agent, user_input, []):
+                if event["type"] == "tool_start":
+                    print(f"\nTool selected: {event['tool']}")
+                    print(f"Tool input: {event['input']}")
+                elif event["type"] == "tool_result":
+                    print(f"Tool result: {event['result']}")
+                elif event["type"] == "answer":
+                    final_answer = event["text"]
 
             print("\n--- Final Answer ---")
             print(final_answer)
